@@ -1,42 +1,57 @@
-const { expect } = require('chai');
-const { ethers } = require('hardhat');
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
 const tokens = (n) => {
-    return ethers.utils.parseUnits(n.toString(), 'ether')
-}
+  return ethers.utils.parseUnits(n.toString(), "ether");
+};
 
-describe('Escrow', () => {
+describe("Escrow", () => {
+  let buyer, seller, inspector, lender;
+  let realEstate, escrow;
 
-    let buyer, seller, inspector, lender
-    let realEstate, escrow
+  beforeEach(async () => {
+    // get signers/account
+    [buyer, seller, inspector, lender] = await ethers.getSigners();
 
-    it('looks at the addresses', async() => {
+    // deploy smart contract
+    const RealEstate = await ethers.getContractFactory("RealEstate");
+    realEstate = await RealEstate.deploy();
 
-        // get signers/account
-        [buyer, seller, inspector, lender] = await ethers.getSigners();
-        
-        // deploy smart contract
-        const RealEstate = await ethers.getContractFactory('RealEstate')
-        realEstate = await RealEstate.deploy()
+    //  mint
+    let transaction = await realEstate
+      .connect(seller)
+      .mint(
+        "https://ipfs.io/ipfs/QmQUozrHLAusXDxrvsESJ3PYB3rUeUuBAvVWw6nop2uu7c/1.png"
+      );
+    await transaction.wait();
 
-        //  mint
-        let transaction = await realEstate.connect(seller).mint("https://ipfs.io/ipfs/QmQUozrHLAusXDxrvsESJ3PYB3rUeUuBAvVWw6nop2uu7c/1.png")
-        await transaction.wait()
+    const Escrow = await ethers.getContractFactory("Escrow");
+    escrow = await Escrow.deploy(
+      realEstate.address,
+      seller.address,
+      inspector.address,
+      lender.address
+    );
+  });
 
-        const Escrow = await ethers.getContractFactory('Escrow');
-        escrow = await Escrow.deploy(
-            realEstate.address, 
-            seller.address, 
-            inspector.address,
-            lender.address
-        )
+  describe("Deployment", () => {
+    it("Returns NFT address", async () => {
+      const result = await escrow.nftAddress();
+      expect(result).to.be.equal(realEstate.address);
+    });
+    it("Returns seller", async () => {
+      const result = await escrow.seller();
+      expect(result).to.be.equal(seller.address);
+    });
+    it("Returns inspector", async () => {
+      const  result = await escrow.inspector();
+      expect(result).to.be.equal(inspector.address);
+    });
+    it("Returns lender", async () => {
+      const  result = await escrow.lender();
+      expect(result).to.be.equal(lender.address);
+    });
+  });
 
-        let result = await escrow.nftAddress()
-        expect(result).to.be.equal(realEstate.address)
-
-        
-
-
-    })
-
-})
+  
+});
